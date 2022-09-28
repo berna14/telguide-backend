@@ -1,7 +1,10 @@
 const express = require("express");
 const app = express();
+const cors = require("cors");
+const Person = require("./models/person");
 
 app.use(express.json());
+app.use(cors());
 
 let persons = [
   {
@@ -39,7 +42,19 @@ let persons = [
 // GET //
 
 app.get("/api/persons", (request, response) => {
-  response.json(persons);
+  Person.find({}).then((persons) => {
+    response.json(persons);
+  });
+});
+
+app.get("/api/persons/:id", (request, response) => {
+  Person.findById(request.params.id).then((person) => {
+    if (person) {
+      response.json(person);
+    } else {
+      response.status(404).end();
+    }
+  });
 });
 
 app.get("/info", (request, response) => {
@@ -51,17 +66,6 @@ app.get("/info", (request, response) => {
   response.send(
     `La cantidad de personas en la lista es de ${personas} y la fecha actual es ${fecha}`
   );
-});
-
-app.get("/api/persons/:id", (request, response) => {
-  const id = +request.params.id;
-  const person = persons.find((person) => person.id === id);
-
-  if (person) {
-    response.json(person);
-  } else {
-    response.status(404).end();
-  }
 });
 
 // DELETE //
@@ -81,7 +85,7 @@ app.post("/api/persons", (request, response) => {
   /* En el caso de esta condicion, si la propiedad "name" y la propiedad "number" no se encuentran a la hora de realizar el
 post, se devolverá una respuesta con un status 404 que transmitirá un error y dirá "content missing" */
 
-  if (!body.name || !body.number) {
+  if (body.name === undefined || body.number === undefined) {
     return response.status(400).json({
       error: "content missing",
     });
@@ -91,16 +95,20 @@ el nombre de usuario ya existe */
   } else if (persons.some((person) => person.name === body.name)) {
     return response.status(400).end("username already exists");
   }
-  const person = {
+
+  const person = new Person({
     name: body.name,
     tel: body.number,
-    id: Math.floor(Math.random() * 100000),
-  };
+  });
+  person.save().then((savedPerson) => {
+    response.json(savedPerson);
+  });
 
   persons = persons.concat(person);
   response.json(person);
 });
 
-const PORT = 3001;
-app.listen(PORT);
-console.log(`Server running on port ${PORT}`);
+const PORT = process.env.PORT;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
