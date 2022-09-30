@@ -3,41 +3,9 @@ const app = express();
 const cors = require("cors");
 const Person = require("../models/person");
 
+app.use(express.static("public"));
 app.use(express.json());
 app.use(cors());
-
-let persons = [
-  {
-    name: "Ada Lovelace",
-    number: "3300999999",
-    id: 1,
-  },
-  {
-    name: "Dan Abramov",
-    number: "14-66-237705",
-    id: 2,
-  },
-  {
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-    id: 3,
-  },
-  {
-    name: "Carlitos Zambrano",
-    number: "358293923",
-    id: 4,
-  },
-  {
-    name: "Franquito Fabra",
-    number: "3351343221",
-    id: 5,
-  },
-  {
-    name: "Jorge Pajin",
-    number: "33-44-7766554",
-    id: 6,
-  },
-];
 
 // GET //
 
@@ -70,11 +38,12 @@ app.get("/info", (request, response) => {
 
 // DELETE //
 
-app.delete("/api/persons/:id", (request, response) => {
-  const id = +request.params.id;
-  persons = persons.filter((note) => note.id !== id);
-
-  response.status(204).end();
+app.delete("/api/persons/:id", (request, response, next) => {
+  Person.findByIdAndRemove(request.params.id)
+    .then((result) => {
+      response.status(204).end();
+    })
+    .catch((error) => next(error));
 });
 
 // POST //
@@ -82,30 +51,36 @@ app.delete("/api/persons/:id", (request, response) => {
 app.post("/api/persons", (request, response) => {
   const body = request.body;
 
-  /* En el caso de esta condicion, si la propiedad "name" y la propiedad "number" no se encuentran a la hora de realizar el
-post, se devolverá una respuesta con un status 404 que transmitirá un error y dirá "content missing" */
-
   if (body.name === undefined || body.number === undefined) {
     return response.status(400).json({
       error: "content missing",
     });
-
-    /* Caso contrario, si intentamos ingresar un nombre ya existente en la lista de personas, la solicitud devolverá un 404 que nos dirá que
-el nombre de usuario ya existe */
-  } else if (persons.some((person) => person.name === body.name)) {
-    return response.status(400).end("username already exists");
   }
 
   const person = new Person({
     name: body.name,
-    tel: body.number,
+    number: body.number,
   });
   person.save().then((savedPerson) => {
     response.json(savedPerson);
   });
+});
 
-  persons = persons.concat(person);
-  response.json(person);
+// PUT //
+
+app.put("/api/persons/:id", (request, response, next) => {
+  const body = request.body;
+
+  const person = {
+    name: body.name,
+    number: body.number,
+  };
+
+  Person.findByIdAndUpdate(request.params.id, person, { new: true })
+    .then((updatedPerson) => {
+      response.json(updatedPerson);
+    })
+    .catch((error) => next(error));
 });
 
 const PORT = process.env.PORT;
